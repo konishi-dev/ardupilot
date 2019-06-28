@@ -1305,6 +1305,12 @@ public:
 
     void rtl_start();
     void takeoff_start(const Location& dest_loc);
+    void takeoff_run();
+	void wp_run();
+    void wp_start(const Location& dest_loc);
+	void land_run();
+	void rtl_run();
+	void loiter_run();
 
     // save current position as A (dest_num = 0) or B (dest_num = 1).  If both A and B have been saved move to the one specified
     void save_or_move_to_destination(uint8_t dest_num);
@@ -1348,9 +1354,12 @@ private:
 
     Vector3f origin;    // in NEU frame in cm relative to ekf origin
     Location startLoc;  // Starting location
+    Location dest_A;	// Upper       location
+    Location dest_B;	// Left-lower  location
+    Location dest_C;	// Right-upper location
+    Location dest_D;	// Left-upper  location
+    Location dest_E;	// Right-lower location
 
-    // Circle
-    bool pilot_yaw_override = false; // true if pilot is overriding yaw
 #if 0
     Vector2f dest_A;    // in NEU frame in cm relative to ekf origin
     Vector2f dest_B;    // in NEU frame in cm relative to ekf origin

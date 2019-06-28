@@ -47,8 +47,31 @@ bool ModeStar::init(bool ignore_checks)
     startLoc.alt += (startLoc.alt + 10 * 100);  // cm
     fprintf(stderr,"[%s:%d] homeLoc=(%f, %f, %f)\n",
         __FUNCTION__, __LINE__, startLoc.lat * 1e-7, startLoc.lng * 1e-7, startLoc.alt * 0.01);
-
-    pilot_yaw_override = false;
+    dest_A = Location(
+			startLoc.lat + 901,		// deg * 1e7
+			startLoc.lng,			// deg * 1e7
+			startLoc.alt + 500,		// cm
+			Location::AltFrame::ABOVE_HOME);
+    dest_B = Location(
+			startLoc.lat - 1631,	// deg * 1e7
+			startLoc.lng - 643,		// deg * 1e7
+			startLoc.alt - 500,		// cm
+			Location::AltFrame::ABOVE_HOME);
+    dest_C = Location(
+			startLoc.lat + 1008,	// deg * 1e7
+			startLoc.lng + 1683,	// deg * 1e7
+			startLoc.alt,			// cm
+			Location::AltFrame::ABOVE_HOME);
+    dest_D = Location(
+			startLoc.lat,			// deg * 1e7
+			startLoc.lng - 2079,	// deg * 1e7
+			startLoc.alt,			// cm
+			Location::AltFrame::ABOVE_HOME);
+    dest_E = Location(
+			startLoc.lat - 1008,	// deg * 1e7
+			startLoc.lng + 1683,	// deg * 1e7
+			startLoc.alt - 500,		// cm
+			Location::AltFrame::ABOVE_HOME);
 
     // initialize speeds and accelerations
     pos_control->set_max_speed_xy(wp_nav->get_default_speed_xy());
@@ -56,24 +79,8 @@ bool ModeStar::init(bool ignore_checks)
     pos_control->set_max_speed_z(-get_pilot_speed_dn(), g.pilot_speed_up);
     pos_control->set_max_accel_z(g.pilot_accel_z);
 
-    // initialise circle controller including setting the circle center based on vehicle speed
-    copter.circle_nav->init();
-#if 0
-    // initialize's loiter position and velocity on xy-axes from current pos and velocity
-    loiter_nav->clear_pilot_desired_acceleration();
-    loiter_nav->init_target();
-
-    // initialise position_z and desired velocity_z
-    if (!pos_control->is_active_z()) {
-        pos_control->set_alt_target_to_current_alt();
-        pos_control->set_desired_velocity_z(inertial_nav.get_velocity_z());
-    }
-
-    // initialise waypoint state
-    stage = STORING_POINTS;
-    dest_A.zero();
-    dest_B.zero();
-#endif
+	_mode = Auto_WP;
+	wp_nav->set_wp_destination(dest_A);
 
     fprintf(stderr,"[%s:%d] Leaving w/ return true.\n", __FUNCTION__, __LINE__);
     return true;
@@ -88,88 +95,34 @@ void ModeStar::run()
     //    __FUNCTION__, __LINE__, _mode, takingoff);
 
     if (!takingoff) {
-        takeoff_start(startLoc);
+        //takeoff_start(startLoc);
     }
 
-    // initialize speeds and accelerations
-    pos_control->set_max_speed_xy(wp_nav->get_default_speed_xy());
-    pos_control->set_max_accel_xy(wp_nav->get_wp_acceleration());
-    pos_control->set_max_speed_z(-get_pilot_speed_dn(), g.pilot_speed_up);
-    pos_control->set_max_accel_z(g.pilot_accel_z);
+	switch (_mode) {
 
-    // get pilot's desired yaw rate (or zero if in radio failsafe)
-    float target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
-    if (!is_zero(target_yaw_rate)) {
-        pilot_yaw_override = true;
-    }
+		case Auto_TakeOff:
+			takeoff_run();
+			break;
 
-    // get pilot desired climb rate (or zero if in radio failsafe)
-    float target_climb_rate = get_pilot_desired_climb_rate(channel_throttle->get_control_in());
-    // adjust climb rate using rangefinder
-    if (copter.rangefinder_alt_ok()) {
-        // if rangefinder is ok, use surface tracking
-        target_climb_rate = copter.get_surface_tracking_climb_rate(target_climb_rate);
-    }
+		case Auto_WP:
+			wp_run();
+			break;
 
-    // if not armed set throttle to zero and exit immediately
-    if (is_disarmed_or_landed()) {
-        make_safe_spool_down();
-        return;
-    }
+		case Auto_Land:
+			land_run();
+			break;
 
-    // set motors to full range
-    motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+		case Auto_RTL:
+			rtl_run();
+			break;
 
-    // run circle controller
-    copter.circle_nav->update();
+		case Auto_Loiter:
+			loiter_run();
+			break;
 
-    // call attitude controller
-    if (pilot_yaw_override) {
-        attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(copter.circle_nav->get_roll(),
-                                                                      copter.circle_nav->get_pitch(),
-                                                                      target_yaw_rate);
-    } else {
-        attitude_control->input_euler_angle_roll_pitch_yaw(copter.circle_nav->get_roll(),
-                                                           copter.circle_nav->get_pitch(),
-                                                           copter.circle_nav->get_yaw(), true);
-    }
-
-    // update altitude target and call position controller
-    // protects heli's from inflight motor interlock disable
-    if (motors->get_desired_spool_state() == AP_Motors::DesiredSpoolState::GROUND_IDLE && !copter.ap.land_complete) {
-        pos_control->set_alt_target_from_climb_rate(-abs(g.land_speed), G_Dt, false);
-    } else {
-        pos_control->set_alt_target_from_climb_rate(target_climb_rate, G_Dt, false);
-    }
-    pos_control->update_z_controller();
-#if 0
-    // initialize vertical speed and acceleration's range
-    pos_control->set_max_speed_z(-get_pilot_speed_dn(), g.pilot_speed_up);
-    pos_control->set_max_accel_z(g.pilot_accel_z);
-
-    // if not auto armed or motors not enabled set throttle to zero and exit immediately
-    if (is_disarmed_or_landed() || !motors->get_interlock() ) {
-        //zero_throttle_and_relax_ac(copter.is_tradheli() && motors->get_interlock());
-        return;
-    }
-
-    // auto control
-    if (stage == AUTO) {
-        // if vehicle has reached destination switch to manual control
-        if (reached_destination()) {
-            AP_Notify::events.waypoint_complete = 1;
-            return_to_manual_control(true);
-        } else {
-            auto_control();
-        }
-    }
-
-    // manual control
-    if (stage == STORING_POINTS || stage == MANUAL_REGAIN) {
-        // receive pilot's inputs, do position and attitude control
-        manual_control();
-    }
-#endif
+		default:
+			break;
+	}
 }
 
 uint32_t ModeStar::wp_distance() const
@@ -285,6 +238,90 @@ void ModeStar::takeoff_start(const Location& dest_loc)
 
     // get initial alt for WP_NAVALT_MIN
     auto_takeoff_set_start_alt();
+}
+
+// auto_wp_start - initialises waypoint controller to implement flying to a particular destination
+void ModeStar::wp_start(const Location& dest_loc)
+{
+    _mode = Auto_WP;
+
+    // send target to waypoint controller
+    if (!wp_nav->set_wp_destination(dest_loc)) {
+        // failure to set destination can only be because of missing terrain data
+        copter.failsafe_terrain_on_event();
+        return;
+    }
+
+    // initialise yaw
+    // To-Do: reset the yaw only when the previous navigation command is not a WP.  this would allow removing the special check for ROI
+    if (auto_yaw.mode() != AUTO_YAW_ROI) {
+        auto_yaw.set_mode_to_default(false);
+    }
+}
+
+// auto_takeoff_run - takeoff in auto mode
+//      called by auto_run at 100hz or more
+void ModeStar::takeoff_run()
+{
+    auto_takeoff_run();
+    if (wp_nav->reached_wp_destination()) {
+        const Vector3f target = wp_nav->get_wp_destination();
+        wp_start(target);
+    }
+}
+
+// auto_wp_run - runs the auto waypoint controller
+//      called by auto_run at 100hz or more
+void ModeStar::wp_run()
+{
+    //fprintf(stderr,"[%s:%d] Entering...\n", __FUNCTION__, __LINE__);
+
+    // process pilot's yaw input
+    float target_yaw_rate = 0;
+    if (!copter.failsafe.radio) {
+        // get pilot's desired yaw rate
+        target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
+        if (!is_zero(target_yaw_rate)) {
+            auto_yaw.set_mode(AUTO_YAW_HOLD);
+        }
+    }
+
+    // if not armed set throttle to zero and exit immediately
+    if (is_disarmed_or_landed()) {
+        make_safe_spool_down();
+        wp_nav->wp_and_spline_init();
+        return;
+    }
+
+    // set motors to full range
+    motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+
+    // run waypoint controller
+    copter.failsafe_terrain_set_status(wp_nav->update_wpnav());
+
+    // call z-axis position controller (wpnav should have already updated it's alt target)
+    pos_control->update_z_controller();
+
+    // call attitude controller
+    if (auto_yaw.mode() == AUTO_YAW_HOLD) {
+        // roll & pitch from waypoint controller, yaw rate from pilot
+        attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), target_yaw_rate);
+    } else {
+        // roll, pitch from waypoint controller, yaw heading from auto_heading()
+        attitude_control->input_euler_angle_roll_pitch_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.yaw(), true);
+    }
+}
+
+void ModeStar::land_run()
+{
+}
+
+void ModeStar::rtl_run()
+{
+}
+
+void ModeStar::loiter_run()
+{
 }
 
 #endif // MODE_STAR_ENABLED == ENABLED
