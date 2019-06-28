@@ -368,7 +368,7 @@
 //////////////////////////////////////////////////////////////////////////////
 // Star - allow vehicle to fly in a star shape with predefined point A to E via B, C and D.
 #ifndef MODE_STAR_ENABLED
-# define MODE_STAR_ENABLED !HAL_MINIMIZE_FEATURES
+# define MODE_STAR_ENABLED ENABLED
 #endif
 
 //////////////////////////////////////////////////////////////////////////////

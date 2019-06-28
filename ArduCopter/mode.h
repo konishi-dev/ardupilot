@@ -1300,11 +1300,28 @@ public:
     bool allows_arming(bool from_gcs) const override { return false; }
     bool is_autopilot() const override { return true; }
 
+    // Auto
+    AutoMode mode() const { return _mode; }
+
+    void rtl_start();
+    void takeoff_start(const Location& dest_loc);
+
     // save current position as A (dest_num = 0) or B (dest_num = 1).  If both A and B have been saved move to the one specified
     void save_or_move_to_destination(uint8_t dest_num);
 
     // return manual control to the pilot
     void return_to_manual_control(bool maintain_target);
+
+    // for GCS_MAVLink to call:
+    bool do_guided(const AP_Mission::Mission_Command& cmd);
+
+	/*
+    AP_Mission mission {
+        FUNCTOR_BIND_MEMBER(&ModeStar::start_command, bool, const AP_Mission::Mission_Command &),
+        FUNCTOR_BIND_MEMBER(&ModeStar::verify_command, bool, const AP_Mission::Mission_Command &),
+        FUNCTOR_BIND_MEMBER(&ModeStar::exit_mission, void)
+	};
+	*/
 
 protected:
 
@@ -1316,11 +1333,21 @@ protected:
 
 private:
 
+    bool start_command(const AP_Mission::Mission_Command& cmd);
+    bool verify_command(const AP_Mission::Mission_Command& cmd);
+    void exit_mission();
+
     void auto_control();
     void manual_control();
     bool reached_destination();
     bool calculate_next_dest(uint8_t position_num, bool use_wpnav_alt, Vector3f& next_dest, bool& terrain_alt) const;
 
+    AutoMode _mode = Auto_TakeOff;   // controls which auto controller is run
+
+    void do_yaw(const AP_Mission::Mission_Command& cmd);
+
+    Vector3f origin;    // in NEU frame in cm relative to ekf origin
+    Location startLoc;  // Starting location
 
     // Circle
     bool pilot_yaw_override = false; // true if pilot is overriding yaw
