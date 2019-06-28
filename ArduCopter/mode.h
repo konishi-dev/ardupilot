@@ -1354,22 +1354,9 @@ private:
 
     Vector3f origin;    // in NEU frame in cm relative to ekf origin
     Location startLoc;  // Starting location
-    Location dest_A;	// Upper       location
-    Location dest_B;	// Left-lower  location
-    Location dest_C;	// Right-upper location
-    Location dest_D;	// Left-upper  location
-    Location dest_E;	// Right-lower location
+	int curDest = 0;
+	int numDest = 5;
+	Location wPnts[5];
 
-#if 0
-    Vector2f dest_A;    // in NEU frame in cm relative to ekf origin
-    Vector2f dest_B;    // in NEU frame in cm relative to ekf origin
-
-    enum star_state {
-        STORING_POINTS, // storing points A and B, pilot has manual control
-        AUTO,           // after A and B defined, pilot toggle the switch from one side to the other, vehicle flies autonomously
-        MANUAL_REGAIN   // pilot toggle the switch to middle position, has manual control
-    } stage;
-
-    uint32_t reach_wp_time_ms = 0;  // time since vehicle reached destination (or zero if not yet reached)
-#endif
+	bool completed = false;
 };

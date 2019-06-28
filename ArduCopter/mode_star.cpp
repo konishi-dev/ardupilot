@@ -38,36 +38,32 @@ bool ModeStar::init(bool ignore_checks)
         copter.mode_guided.limit_clear();
     }
 
-	origin = wp_nav->get_wp_origin();
-    fprintf(stderr,"[%s:%d] origin=(%f, %f, %f)\n",
-        __FUNCTION__, __LINE__, origin.x, origin.y, origin.z);
-
 	//Location homeLoc = copter.current_loc;
 	startLoc = copter.current_loc;
     startLoc.alt += (startLoc.alt + 10 * 100);  // cm
     fprintf(stderr,"[%s:%d] homeLoc=(%f, %f, %f)\n",
         __FUNCTION__, __LINE__, startLoc.lat * 1e-7, startLoc.lng * 1e-7, startLoc.alt * 0.01);
-    dest_A = Location(
+    wPnts[0] = Location(
 			startLoc.lat + 901,		// deg * 1e7
 			startLoc.lng,			// deg * 1e7
 			startLoc.alt + 500,		// cm
 			Location::AltFrame::ABOVE_HOME);
-    dest_B = Location(
+    wPnts[1] = Location(
 			startLoc.lat - 1631,	// deg * 1e7
 			startLoc.lng - 643,		// deg * 1e7
 			startLoc.alt - 500,		// cm
 			Location::AltFrame::ABOVE_HOME);
-    dest_C = Location(
+    wPnts[2] = Location(
 			startLoc.lat + 1008,	// deg * 1e7
 			startLoc.lng + 1683,	// deg * 1e7
 			startLoc.alt,			// cm
 			Location::AltFrame::ABOVE_HOME);
-    dest_D = Location(
+    wPnts[3] = Location(
 			startLoc.lat,			// deg * 1e7
 			startLoc.lng - 2079,	// deg * 1e7
 			startLoc.alt,			// cm
 			Location::AltFrame::ABOVE_HOME);
-    dest_E = Location(
+    wPnts[4] = Location(
 			startLoc.lat - 1008,	// deg * 1e7
 			startLoc.lng + 1683,	// deg * 1e7
 			startLoc.alt - 500,		// cm
@@ -80,7 +76,18 @@ bool ModeStar::init(bool ignore_checks)
     pos_control->set_max_accel_z(g.pilot_accel_z);
 
 	_mode = Auto_WP;
-	wp_nav->set_wp_destination(dest_A);
+
+	bool ret = wp_nav->set_wp_destination(wPnts[curDest]);
+	if (!ret) {
+		fprintf(stderr,"[%s:%d] Leaving w/ return false. WP could not be set...\n",
+				__FUNCTION__, __LINE__);
+		return false;
+	}
+
+	origin = wp_nav->get_wp_origin();
+	Vector3f wp = wp_nav->get_wp_destination();
+    fprintf(stderr,"[%s:%d] origin=(%f, %f, %f) -> (%f, %f, %f)\n",
+        __FUNCTION__, __LINE__, origin.x, origin.y, origin.z, wp.x, wp.y, wp.z);
 
     fprintf(stderr,"[%s:%d] Leaving w/ return true.\n", __FUNCTION__, __LINE__);
     return true;
@@ -275,6 +282,38 @@ void ModeStar::takeoff_run()
 void ModeStar::wp_run()
 {
     //fprintf(stderr,"[%s:%d] Entering...\n", __FUNCTION__, __LINE__);
+
+    if (wp_nav->reached_wp_destination()) {
+		fprintf(stderr,"[%s:%d] Reached to Dest# %d.\n",
+				__FUNCTION__, __LINE__, curDest);
+
+		if (++curDest < numDest) {
+			Vector3f newOrigin = wp_nav->get_wp_destination();
+			if (!wp_nav->set_wp_destination(wPnts[curDest])) {
+				fprintf(stderr,"[%s:%d] Failed to set a new WP Dest# %d.\n",
+						__FUNCTION__, __LINE__, curDest);
+
+				// ToDo
+				return;
+			}
+			Vector3f newDest = wp_nav->get_wp_destination();
+			if (!wp_nav->set_wp_origin_and_destination(newOrigin, newDest)) {
+				fprintf(stderr,"[%s:%d] Failed to set a new WP Origin# %d.\n",
+						__FUNCTION__, __LINE__, curDest);
+				return;
+			}
+
+			fprintf(stderr,"[%s:%d] (%f, %f, %f) -> (%f, %f, %f)\n",
+					__FUNCTION__, __LINE__, newOrigin.x, newOrigin.y, newOrigin.z,
+					newDest.x, newDest.y, newDest.z);
+		} else {
+			completed = true;
+			fprintf(stderr,"[%s:%d] Mission compleleted !!\n",
+					__FUNCTION__, __LINE__);
+			_mode = Auto_RTL;
+			return;
+		}
+	}
 
     // process pilot's yaw input
     float target_yaw_rate = 0;
