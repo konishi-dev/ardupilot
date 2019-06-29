@@ -44,25 +44,30 @@ bool ModeStar::init(bool ignore_checks)
     fprintf(stderr,"[%s:%d] homeLoc=(%f, %f, %f)\n",
         __FUNCTION__, __LINE__, startLoc.lat * 1e-7, startLoc.lng * 1e-7, startLoc.alt * 0.01);
 
+	double sin18deg = sin(M_PI / 10);
+	double cos18deg = cos(M_PI / 10);
+	double sin54deg = sin(3 * M_PI / 10);
+	double cos54deg = cos(3 * M_PI / 10);
+	int scale = 2000;
     wPnts[0] = Location(
-			startLoc.lat - 1631 - 901,	// deg * 1e7
-			startLoc.lng - 643,			// deg * 1e7
-			startLoc.alt - 500 - 500,	// cm
+			startLoc.lat - scale * (1 + sin54deg),	// deg * 1e7
+			startLoc.lng - scale * cos54deg,		// deg * 1e7
+			startLoc.alt - 1000,	// cm
 			Location::AltFrame::ABOVE_HOME);
     wPnts[1] = Location(
-			startLoc.lat + 1008 - 901,	// deg * 1e7
-			startLoc.lng + 1683,		// deg * 1e7
-			startLoc.alt - 500,			// cm
+			startLoc.lat - scale * (1 - sin18deg),	// deg * 1e7
+			startLoc.lng + scale * cos18deg,		// deg * 1e7
+			startLoc.alt - 500,		// cm
 			Location::AltFrame::ABOVE_HOME);
     wPnts[2] = Location(
-			startLoc.lat - 901,			// deg * 1e7
-			startLoc.lng - 2079,		// deg * 1e7
-			startLoc.alt - 500,			// cm
+			startLoc.lat - scale * (1 - sin18deg),	// deg * 1e7
+			startLoc.lng - scale * cos18deg,		// deg * 1e7
+			startLoc.alt - 500,		// cm
 			Location::AltFrame::ABOVE_HOME);
     wPnts[3] = Location(
-			startLoc.lat - 1008 - 901,	// deg * 1e7
-			startLoc.lng + 1683,		// deg * 1e7
-			startLoc.alt - 500 - 500,	// cm
+			startLoc.lat - scale * (1 + sin54deg),	// deg * 1e7
+			startLoc.lng + scale * cos54deg,		// deg * 1e7
+			startLoc.alt - 1000,	// cm
 			Location::AltFrame::ABOVE_HOME);
     wPnts[4] = Location(
 			startLoc.lat,
@@ -87,7 +92,7 @@ bool ModeStar::init(bool ignore_checks)
 
 	origin = wp_nav->get_wp_origin();
 	Vector3f wp = wp_nav->get_wp_destination();
-    fprintf(stderr,"[%s:%d] origin=(%f, %f, %f) -> (%f, %f, %f)\n",
+    fprintf(stderr,"[%s:%d] Next: (%f, %f, %f) -> (%f, %f, %f)\n",
         __FUNCTION__, __LINE__, origin.x, origin.y, origin.z, wp.x, wp.y, wp.z);
 
     fprintf(stderr,"[%s:%d] Leaving w/ return true.\n", __FUNCTION__, __LINE__);
@@ -305,7 +310,7 @@ void ModeStar::wp_run()
 				return;
 			}
 
-			fprintf(stderr,"[%s:%d] (%f, %f, %f) -> (%f, %f, %f)\n",
+			fprintf(stderr,"[%s:%d] Next: (%f, %f, %f) -> (%f, %f, %f)\n",
 					__FUNCTION__, __LINE__, newOrigin.x, newOrigin.y, newOrigin.z,
 					newDest.x, newDest.y, newDest.z);
 		} else {
