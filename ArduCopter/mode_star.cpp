@@ -108,7 +108,20 @@ void ModeStar::run()
     //    __FUNCTION__, __LINE__, _mode, takingoff);
 
     if (!takingoff) {
-        //takeoff_start(startLoc);
+		/*
+        if (copter.current_loc.alt < 20 * 100) {	// Taking off to 20m if less than 20m.
+            startLoc = Location(
+                    copter.current_loc.lat,
+                    copter.current_loc.lng,
+                    20 * 100,	// cm
+                    Location::AltFrame::ABOVE_HOME);
+            takeoff_start(startLoc);
+        } else {
+            _mode = Auto_WP;
+        }
+    } else {
+        _mode = Auto_TakeOff;
+		*/
     }
 
 	switch (_mode) {
@@ -204,6 +217,7 @@ void ModeStar::rtl_start()
 // auto_takeoff_start - initialises waypoint controller to implement take-off
 void ModeStar::takeoff_start(const Location& dest_loc)
 {
+    //fprintf(stderr,"[%s:%d] Entering...\n", __FUNCTION__, __LINE__);
     _mode = Auto_TakeOff;
 
     Location dest(dest_loc);
@@ -288,9 +302,22 @@ void ModeStar::takeoff_run()
 void ModeStar::wp_run()
 {
     //fprintf(stderr,"[%s:%d] Entering...\n", __FUNCTION__, __LINE__);
+    /*
+	bool ret = wp_nav->set_wp_destination(wPnts[curDest]);
+	if (!ret) {
+		fprintf(stderr,"[%s:%d] Leaving w/ return false. WP could not be set...\n",
+				__FUNCTION__, __LINE__);
+		return;
+	}
+
+	origin = wp_nav->get_wp_origin();
+	Vector3f wp = wp_nav->get_wp_destination();
+    fprintf(stderr,"[%s:%d] Next: (%f, %f, %f) -> (%f, %f, %f)\n",
+        __FUNCTION__, __LINE__, origin.x, origin.y, origin.z, wp.x, wp.y, wp.z);
+    */
 
     if (wp_nav->reached_wp_destination()) {
-		fprintf(stderr,"[%s:%d] Reached to Dest# %d.\n",
+		fprintf(stderr,"[%s:%d] Reached Dest# %d.\n",
 				__FUNCTION__, __LINE__, curDest);
 
 		Vector3f newOrigin = wp_nav->get_wp_destination();
@@ -326,7 +353,7 @@ void ModeStar::wp_run()
 			completed = true;
 			fprintf(stderr,"[%s:%d] Mission compleleted !!\n",
 					__FUNCTION__, __LINE__);
-			_mode = Auto_RTL;
+			_mode = Auto_Loiter;
 
 			return;
 		}
@@ -376,8 +403,32 @@ void ModeStar::rtl_run()
 {
 }
 
+// auto_loiter_run - loiter in AUTO flight mode
+//      called by auto_run at 100hz or more
 void ModeStar::loiter_run()
 {
+    //fprintf(stderr,"[%s:%d] Entering...\n", __FUNCTION__, __LINE__);
+    // if not armed set throttle to zero and exit immediately
+    if (is_disarmed_or_landed()) {
+        make_safe_spool_down();
+        wp_nav->wp_and_spline_init();
+        return;
+    }
+
+    // accept pilot input of yaw
+    float target_yaw_rate = 0;
+    if (!copter.failsafe.radio) {
+        target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
+    }
+
+    // set motors to full range
+    motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+
+    // run waypoint and z-axis position controller
+    copter.failsafe_terrain_set_status(wp_nav->update_wpnav());
+
+    pos_control->update_z_controller();
+    attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), target_yaw_rate);
 }
 
 #endif // MODE_STAR_ENABLED == ENABLED
