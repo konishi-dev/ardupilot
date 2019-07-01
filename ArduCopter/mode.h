@@ -1343,6 +1343,7 @@ private:
     bool verify_command(const AP_Mission::Mission_Command& cmd);
     void exit_mission();
 
+	bool setup_star_wp();
     void auto_control();
     void manual_control();
     bool reached_destination();
@@ -1355,7 +1356,7 @@ private:
     Vector3f origin;    // in NEU frame in cm relative to ekf origin
     Location startLoc;  // Starting location
 	int curDest = 0;
-	int numDest = 5;
+	const int numDest = 5;
 	Location wPnts[5];
 
 	bool completed = false;
