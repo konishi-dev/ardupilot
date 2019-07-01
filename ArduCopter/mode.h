@@ -1356,8 +1356,8 @@ private:
     Vector3f origin;    // in NEU frame in cm relative to ekf origin
     Location startLoc;  // Starting location
 	int curDest = 0;
-	const int numDest = 5;
-	Location wPnts[5];
+	const int numDest = 6;
+	Location wPnts[6];
 
 	bool completed = false;
 };

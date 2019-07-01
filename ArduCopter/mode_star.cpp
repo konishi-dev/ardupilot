@@ -136,34 +136,32 @@ bool ModeStar::setup_star_wp()
 	curDest = 0;
 
 	int scale = 2000;
-	/*
 	wPnts[0] = Location(
 			startLoc.lat,
 			startLoc.lng,
 			startLoc.alt,
 			Location::AltFrame::ABOVE_HOME);
-			*/
-	wPnts[0] = Location(
+	wPnts[1] = Location(
 			startLoc.lat - scale * (1 + Sin54deg),	// deg * 1e7
 			startLoc.lng - scale * Cos54deg,		// deg * 1e7
 			startLoc.alt - 1000,	// cm
 			Location::AltFrame::ABOVE_HOME);
-	wPnts[1] = Location(
+	wPnts[2] = Location(
 			startLoc.lat - scale * (1 - Sin18deg),	// deg * 1e7
 			startLoc.lng + scale * Cos18deg,		// deg * 1e7
 			startLoc.alt - 500,		// cm
 			Location::AltFrame::ABOVE_HOME);
-	wPnts[2] = Location(
+	wPnts[3] = Location(
 			startLoc.lat - scale * (1 - Sin18deg),	// deg * 1e7
 			startLoc.lng - scale * Cos18deg,		// deg * 1e7
 			startLoc.alt - 500,		// cm
 			Location::AltFrame::ABOVE_HOME);
-	wPnts[3] = Location(
+	wPnts[4] = Location(
 			startLoc.lat - scale * (1 + Sin54deg),	// deg * 1e7
 			startLoc.lng + scale * Cos54deg,		// deg * 1e7
 			startLoc.alt - 1000,	// cm
 			Location::AltFrame::ABOVE_HOME);
-	wPnts[4] = Location(
+	wPnts[5] = Location(
 			startLoc.lat,
 			startLoc.lng,
 			startLoc.alt,
