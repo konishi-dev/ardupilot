@@ -596,6 +596,11 @@ public:
 
     AP_Float tuning_min;
     AP_Float tuning_max;
+
+#if MODE_STAR_ENABLED == ENABLED
+    // Side length of star-shape [cm]
+    AP_Int16        star_side_len;
+#endif
 };
 
 extern const AP_Param::Info        var_info[];

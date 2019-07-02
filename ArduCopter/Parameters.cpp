@@ -919,6 +919,17 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("TUNE_MAX", 32, ParametersG2, tuning_max, 0),
 
+#if MODE_STAR_ENABLED == ENABLED
+    // @Param: STAR_SIDE_LEN
+    // @DisplayName: Star side length
+    // @Description: Side length during drawing star shape
+    // @Units: cm
+    // @Range: 500 50000
+    // @Increment: 10
+    // @User: Standard
+    AP_GROUPINFO("STAR_SIDE_LEN", 33, ParametersG2, star_side_len, 5000),
+#endif
+
     AP_GROUPEND
 };
 
