@@ -600,6 +600,9 @@ public:
 #if MODE_STAR_ENABLED == ENABLED
     // Side length of star-shape [cm]
     AP_Int16        star_side_len;
+
+    // Starting alt of Star mode [cm]
+    AP_Int16        star_start_alt;
 #endif
 };
 

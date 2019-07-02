@@ -121,8 +121,9 @@ bool ModeStar::setup_star_wp()
 	startLoc = copter.current_loc;
 
 	_mode = Auto_WP;
-	if (startLoc.alt < DefaultStartAlt) {	// Taking off if alt is less than 20m.
-		startLoc.alt = DefaultStartAlt;
+	double start_alt = MAX(MIN(g2.star_start_alt, 100 * 100), 15 * 100);
+	if (startLoc.alt < start_alt) {	// Taking off if alt is less than 20m.
+		startLoc.alt = start_alt;
 		if (!wp_nav->set_wp_destination(startLoc)) {
 			return false;
 		}
@@ -193,8 +194,8 @@ float ModeStar::calc_scale()
 	wp_nav->set_wp_destination(unitDest);
 
 	float unit = wp_nav->get_wp_distance_to_destination();  // cm
-    fprintf(stderr,"[%s:%d] star_side_len = %d[cm], unit = %f[m]\n",
-            __FUNCTION__, __LINE__, g2.star_side_len, unit / 100);
+    fprintf(stderr,"[%s:%d] SideLen=%d[cm], unit=%f[m], StartAlt=%d[cm]\n",
+            __FUNCTION__, __LINE__, g2.star_side_len, unit / 100, g2.star_start_alt);
 
 	return g2.star_side_len * 1e7 / unit;
 }

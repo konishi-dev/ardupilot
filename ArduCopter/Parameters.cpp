@@ -928,6 +928,15 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Increment: 10
     // @User: Standard
     AP_GROUPINFO("STAR_SIDE_LEN", 33, ParametersG2, star_side_len, 5000),
+
+    // @Param: STAR_START_ALT
+    // @DisplayName: Star start alt
+    // @Description: Start altitude (relative) of Star mode
+    // @Units: cm
+    // @Range: 1500 10000
+    // @Increment: 10
+    // @User: Standard
+    AP_GROUPINFO("STAR_START_ALT", 34, ParametersG2, star_start_alt, 2000),
 #endif
 
     AP_GROUPEND
