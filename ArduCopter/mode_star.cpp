@@ -135,7 +135,7 @@ bool ModeStar::setup_star_wp()
 
 	curDest = 0;
 
-	int scale = 2000;
+	float scale = calc_scale();
 	wPnts[0] = Location(
 			startLoc.lat,
 			startLoc.lng,
@@ -176,10 +176,26 @@ bool ModeStar::setup_star_wp()
 
     origin = wp_nav->get_wp_origin();
     Vector3f wp = wp_nav->get_wp_destination();
-    fprintf(stderr,"[%s:%d] Next: (%f, %f, %f) -> (%f, %f, %f)\n",
-            __FUNCTION__, __LINE__, origin.x, origin.y, origin.z, wp.x, wp.y, wp.z);
+    fprintf(stderr,"[%s:%d] Next: (%f, %f, %f) -> (%f, %f, %f), scale = %f\n",
+            __FUNCTION__, __LINE__, origin.x, origin.y, origin.z, wp.x, wp.y, wp.z,
+			scale);
 
     return true;
+}
+
+float ModeStar::calc_scale()
+{
+	Location unitDest = Location(
+			copter.current_loc.lat - (1 + Sin54deg) * 1e7,  // deg * 1e7
+			copter.current_loc.lng - Cos54deg * 1e7,        // deg * 1e7
+			copter.current_loc.alt,                         // cm
+			Location::AltFrame::ABOVE_HOME);
+	wp_nav->set_wp_destination(unitDest);
+
+	float unit = wp_nav->get_wp_distance_to_destination();  // cm
+    fprintf(stderr,"[%s:%d] Next: unit = %f[m]\n", unit / 100);
+
+	return 100 * side_length * 1e7 / unit;
 }
 
 // do_guided - start guided mode
@@ -327,52 +343,53 @@ void ModeStar::wp_run()
             }
             Vector3f newOrigin = wp_nav->get_wp_origin();
             Vector3f newDest = wp_nav->get_wp_destination();
-            fprintf(stderr,"[%s:%d] Next: (%f, %f, %f) -> (%f, %f, %f)\n",
+            fprintf(stderr,"[%s:%d] Next: (%f, %f, %f) -> (%f, %f, %f) : %f[m]\n",
                     __FUNCTION__, __LINE__, newOrigin.x, newOrigin.y, newOrigin.z,
-                    newDest.x, newDest.y, newDest.z);
-        } else {
-            fprintf(stderr,"[%s:%d] Mission compleleted !!\n",
-                    __FUNCTION__, __LINE__);
-            _mode = Auto_Loiter;
+					newDest.x, newDest.y, newDest.z,
+					wp_nav->get_wp_distance_to_destination() / 100);
+		} else {
+			fprintf(stderr,"[%s:%d] Mission compleleted !!\n",
+					__FUNCTION__, __LINE__);
+			_mode = Auto_Loiter;
 
-            return;
-        }
-    }
+			return;
+		}
+	}
 
-    // process pilot's yaw input
-    float target_yaw_rate = 0;
-    if (!copter.failsafe.radio) {
-        // get pilot's desired yaw rate
-        target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
-        if (!is_zero(target_yaw_rate)) {
-            auto_yaw.set_mode(AUTO_YAW_HOLD);
-        }
-    }
+	// process pilot's yaw input
+	float target_yaw_rate = 0;
+	if (!copter.failsafe.radio) {
+		// get pilot's desired yaw rate
+		target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
+		if (!is_zero(target_yaw_rate)) {
+			auto_yaw.set_mode(AUTO_YAW_HOLD);
+		}
+	}
 
-    // if not armed set throttle to zero and exit immediately
-    if (is_disarmed_or_landed()) {
-        make_safe_spool_down();
-        wp_nav->wp_and_spline_init();
-        return;
-    }
+	// if not armed set throttle to zero and exit immediately
+	if (is_disarmed_or_landed()) {
+		make_safe_spool_down();
+		wp_nav->wp_and_spline_init();
+		return;
+	}
 
-    // set motors to full range
-    motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+	// set motors to full range
+	motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
 
-    // run waypoint controller
-    copter.failsafe_terrain_set_status(wp_nav->update_wpnav());
+	// run waypoint controller
+	copter.failsafe_terrain_set_status(wp_nav->update_wpnav());
 
-    // call z-axis position controller (wpnav should have already updated it's alt target)
-    pos_control->update_z_controller();
+	// call z-axis position controller (wpnav should have already updated it's alt target)
+	pos_control->update_z_controller();
 
-    // call attitude controller
-    if (auto_yaw.mode() == AUTO_YAW_HOLD) {
-        // roll & pitch from waypoint controller, yaw rate from pilot
-        attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), target_yaw_rate);
-    } else {
-        // roll, pitch from waypoint controller, yaw heading from auto_heading()
-        attitude_control->input_euler_angle_roll_pitch_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.yaw(), true);
-    }
+	// call attitude controller
+	if (auto_yaw.mode() == AUTO_YAW_HOLD) {
+		// roll & pitch from waypoint controller, yaw rate from pilot
+		attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), target_yaw_rate);
+	} else {
+		// roll, pitch from waypoint controller, yaw heading from auto_heading()
+		attitude_control->input_euler_angle_roll_pitch_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.yaw(), true);
+	}
 }
 
 void ModeStar::land_run()
@@ -387,28 +404,28 @@ void ModeStar::rtl_run()
 //      called by auto_run at 100hz or more
 void ModeStar::loiter_run()
 {
-    //fprintf(stderr,"[%s:%d] Entering...\n", __FUNCTION__, __LINE__);
-    // if not armed set throttle to zero and exit immediately
-    if (is_disarmed_or_landed()) {
-        make_safe_spool_down();
-        wp_nav->wp_and_spline_init();
-        return;
-    }
+	//fprintf(stderr,"[%s:%d] Entering...\n", __FUNCTION__, __LINE__);
+	// if not armed set throttle to zero and exit immediately
+	if (is_disarmed_or_landed()) {
+		make_safe_spool_down();
+		wp_nav->wp_and_spline_init();
+		return;
+	}
 
-    // accept pilot input of yaw
-    float target_yaw_rate = 0;
-    if (!copter.failsafe.radio) {
-        target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
-    }
+	// accept pilot input of yaw
+	float target_yaw_rate = 0;
+	if (!copter.failsafe.radio) {
+		target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
+	}
 
-    // set motors to full range
-    motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+	// set motors to full range
+	motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
 
-    // run waypoint and z-axis position controller
-    copter.failsafe_terrain_set_status(wp_nav->update_wpnav());
+	// run waypoint and z-axis position controller
+	copter.failsafe_terrain_set_status(wp_nav->update_wpnav());
 
-    pos_control->update_z_controller();
-    attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), target_yaw_rate);
+	pos_control->update_z_controller();
+	attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), target_yaw_rate);
 }
 
 #endif // MODE_STAR_ENABLED == ENABLED
