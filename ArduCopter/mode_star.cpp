@@ -193,7 +193,7 @@ float ModeStar::calc_scale()
 	wp_nav->set_wp_destination(unitDest);
 
 	float unit = wp_nav->get_wp_distance_to_destination();  // cm
-    fprintf(stderr,"[%s:%d] Next: unit = %f[m]\n", unit / 100);
+    fprintf(stderr,"[%s:%d] Next: unit = %f[m]\n", __FUNCTION__, __LINE__, unit / 100);
 
 	return 100 * side_length * 1e7 / unit;
 }

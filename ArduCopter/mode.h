@@ -1359,7 +1359,7 @@ private:
 	int curDest = 0;
 	const int numDest = 6;
 	Location wPnts[6];
-	float side_length = 50.0;	// [m]
+	float side_length = 50.0;   // [m]
 
 	bool completed = false;
 };
